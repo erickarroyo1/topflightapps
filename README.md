@@ -100,12 +100,12 @@ This repository demonstrates the deployment of a simple application using Amazon
 7. no se tiene CDN ni WAF
 
 
-Orden de despliegue para ci/cd (opcional si hay tiempo): 
+# Deployment order for CI/CD (optional):
 
 1. VPC
-2. Backend
-3. RDS
-4. ECS
-
-
+2. Backend tfstate
+3. RDS and configurations (db creation and configs)
+4. Docker imagen gccreation and push to ECR 
+5. ECS deployment 
+6. Testing
 
