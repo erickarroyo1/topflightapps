@@ -1,6 +1,6 @@
 # AWS ECS Deployment with Terraform and Docker
 
-This repository demonstrates the deployment of a simple application using Amazon ECS, Terraform, and Docker. The application consists of a basic Nginx web server container that displays a message. It involves creating a VPC, an RDS database, an ECS cluster, and deploying the application container. Security best practices are followed to ensure proper access control, networking, and endpoint protection.
+This repository demonstrates the deployment of a simple application using Amazon ECS, RDS, Terraform, and Docker. The application consists of a basic flask app using python. It is deployed into a container that displays a message and retrieve the current value of the database. The RDS Data is inserted at the 1st called to a microservice and is ony one execution. It involves creating a VPC, an RDS database, an ECS cluster, and deploying the application container. Security best practices are followed to ensure proper access control, networking, and endpoint protection.
 
 ## Steps
 
@@ -9,38 +9,59 @@ This repository demonstrates the deployment of a simple application using Amazon
 1. Build the Docker image:
     - Dockerfile:
       ```
-      FROM nginx:latest
-      COPY index.html /usr/share/nginx/html/index.html
-      EXPOSE 8080
+        FROM python:3.9
+        RUN apt update && apt install -y python3-mysqldb
+        ENV PYTHONUNBUFFERED True
+        ENV APP_HOME /app
+        WORKDIR $APP_HOME
+        COPY . ./
+        RUN pip install --no-cache-dir -r requirements.txt
+        CMD ["python3", "app.py"]
+
       ```
-    - HTML (`index.html`):
-      ```html
-      <!DOCTYPE html>
-      <html>
-      <head>
-          <title>topFlightApp</title>
-      </head>
-      <body>
-          <h1>topFlightApp is running on port 8080 using AWS ECS</h1>
-      </body>
-      </html>
-      ```
+
 2. Push the image to Amazon ECR:
-    ```bash
-        aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/s0p7h2p1
-        docker build -t topflightappdemo .
-        docker tag topflightappdemo:latest public.ecr.aws/s0p7h2p1/topflightappdemo:latest
-        docker push public.ecr.aws/s0p7h2p1/topflightappdemo:latest
-    ```
+      ```bash
+                aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/s0p7h2p1
+                docker build -t topflightappdemo .
+                docker tag topflightappdemo:latest public.ecr.aws/s0p7h2p1/topflightappdemo:latest
+                docker push public.ecr.aws/s0p7h2p1/topflightappdemo:latest
+       ```
 
-### Infrastructure Setup
+## ECS Cluster Deployment Definitions
 
-1. Build the infrastructure (VPC, networking, subnets, routes, NAT gateways, ECS Cluster) using Terraform or CDK with Python or other programming languages.
-2. Configure security groups for ECS service and RDS connection within the same VPC.
+1. Create a task definition using the provided JSON configuration.
+2. Deploy the task into the ECS cluster using a service and optionally a load balancer.
+3. Configure security groups for the ECS service and RDS connection to be within the same VPC.
+4. Optionally, configure ECS with variables. 
+5. You can also consider using secrets from AWS Secrets Manager for added security.
 
-### Database Configuration
+## Application Deployment (Local Testing)
+    
+    The application code should retrieve variables from the OS environment. For testing purposes, use the following command:
 
-1. Connect to the RDS database:
+        ```bash
+            docker run -d -p 8080:8080 --name topflightapp -e DB_USERNAME=admin -e DB_PASSWORD='password' -e DB_HOST=database-topflight-app.cqa8k6awsmjm.us-east-1.rds.amazonaws.com -e DB_PORT=3306 -e DB_NAME=db public.ecr.aws/s0p7h2p1/topflightappdemo:v3
+        ```
+
+
+## Terraform resources to be created (Definition)
+
+1. VPC (Subnets, routes, IGW, NAtGw)
+2. RDS Database free tier
+3. Secret Manager
+4. Policies
+5. Roles
+6. ECS cluster
+7. ECS task definition
+8. ECR Repository
+9. Image creation and pulling to ECR
+10. Use terraform.workspaces from beginning and module as possible for repeteability (needed)
+11. CI/CD (optional)
+
+### Database Configuration form a host within vpc
+
+1. Connect to the RDS database using bastion host deployed into the same RDS's VPC
 
     ```bash
         mysql -h database-topflight-app.cqa8k6awsmjm.us-east-1.rds.amazonaws.com -u admin -p
@@ -58,54 +79,12 @@ This repository demonstrates the deployment of a simple application using Amazon
     salary DECIMAL(10, 2)
     );
     ```
+# Missing Items and improvements
 
-## ECS Cluster Deployment
-
-1. Create a task definition using the provided JSON configuration.
-2. Deploy the task into the ECS cluster using a service and optionally a load balancer.
-3. Configure security groups for the ECS service and RDS connection to be within the same VPC.
-4. Optionally, configure ECS with variables. You can also consider using secrets from AWS Secrets Manager for added security.
-
-## Application Deployment
-    
-    The application code should retrieve variables from the OS environment. For testing purposes, use the following command:
-    ```bash
-        docker run -d -p 8080:8080 --name topflightapp -e DB_USERNAME=admin -e DB_PASSWORD='password' -e DB_HOST=database-topflight-app.cqa8k6awsmjm.us-east-1.rds.amazonaws.com -e DB_PORT=3306 -e DB_NAME=db public.ecr.aws/s0p7h2p1/topflightappdemo:v3
-    ```
-
-
-## Terraform resources to be created:
-
-1. VPC (Subnets, routes, IGW, NAtGw)
-2. RDS Database free tier
-3. ECS cluster
-4. ECS task definition
-5. ECR Repository
-6. Image creation and pulling to ECR
-7. Use terraform.workspaces from beginning and module as possible for repeteability 
-8. CI/CD
-
-
-# TSHOOT:
-
-
-# Manualidades cosas que faltan
-
-1. Tener en cuenta que no está desplegando automáticamente la configuración de la BD
-2. Tener en cuenta que el repo en ECR está publico y que no se está ejecutando un script automático paara generar la imágen.
-3. Tener en cuenta qe no se ha subido el código a algun repositorio
-4. **No se tiene documentación aun
-5. **el  despliegue  es sin balanceador de carga
-6. no se tiene certificado para listener https 
-7. no se tiene CDN ni WAF
-
-
-# Deployment order for CI/CD (optional):
-
-1. VPC
-2. Backend tfstate
-3. RDS and configurations (db creation and configs)
-4. Docker imagen gccreation and push to ECR 
-5. ECS deployment 
-6. Testing
+1. Please ensure that the database configuration is not auto-deploying.
+2. Take into consideration that the ECR repository is public, and there is no automatic script running to generate the image.
+3. The deployment lacks a load balancer.
+4. An HTTPS listener certificate is missing.
+5. There is no CDN or WAF in place.
+6. CI/CD is a good solution to solve manual steps like configuration of the RDS and employee table, deploy terraform, build and push docker image 
 

@@ -8,4 +8,4 @@ sudo systemctl start mysqld
 touch /home/ec2-user/pass.txt
 sudo cat /var/log/mysqld.log | grep "A temporary password" | awk '{print $13}' > /home/ec2-user/pass.txt
 pass=$(< pass.txt)
-sudo mysql -h localhost -u root -p$pass -e "ALTER USER 'root'@'localhost' IDENTIFIED  BY 'Pass*2020*'; CREATE USER 'test'@'%' IDENTIFIED BY 'Pass*2020**'; GRANT ALL PRIVILEGES ON *.* TO 'test'@'%' WITH GRANT OPTION;" --connect-expired-password
+sudo mysql -h localhost -u root -p$pass -e "ALTER USER 'root'@'localhost' IDENTIFIED  BY 'PassFake'; CREATE USER 'test'@'%' IDENTIFIED BY 'Pass*2020**'; GRANT ALL PRIVILEGES ON *.* TO 'test'@'%' WITH GRANT OPTION;" --connect-expired-password
