@@ -42,7 +42,7 @@ resource "aws_ecs_task_definition" "topflightapp-task-definition" {
         },
         {
           "name" : "DB_PORT",
-          "value" : tostring(data.terraform_remote_state.rds.outputs.rds_port) 
+          "value" : tostring(data.terraform_remote_state.rds.outputs.rds_port)
         },
         {
           "name" : "DB_PASSWORD",
@@ -70,14 +70,6 @@ resource "aws_ecs_task_definition" "topflightapp-task-definition" {
   provider = aws.landing-zone-account
 }
 
-resource "aws_lb_target_group" "topflightapp_alb" {
-  name     = "topflightapp_alb"
-  target_type = "alb"
-  port     = 8080
-  protocol = "HTTP"
-  vpc_id   = data.terraform_remote_state.network.outputs.vpc
-}
-
 resource "aws_ecs_service" "topflightsvc" {
   name            = "topflightsvc"
   cluster         = aws_ecs_cluster.topflightapp_ecs_cluster.id
@@ -85,19 +77,19 @@ resource "aws_ecs_service" "topflightsvc" {
   desired_count   = 2
 
   load_balancer {
-    target_group_arn = aws_lb_target_group.foo.arn
-    container_name   = "mongo"
+    target_group_arn = aws_alb_target_group.topflight-tg_alb.arn
+    container_name   = "topflightapp"
     container_port   = 8080
-  } 
+  }
 
   capacity_provider_strategy {
-    capacity_provider = "FARGATE"  
+    capacity_provider = "FARGATE"
     weight            = 1
   }
 
   network_configuration {
     subnets         = [data.terraform_remote_state.network.outputs.private_subnets[0], data.terraform_remote_state.network.outputs.private_subnets[1]]
-    security_groups = [aws_security_group.ecs_sg.id] 
+    security_groups = [aws_security_group.ecs_sg.id]
   }
 
   tags     = local.common_tags

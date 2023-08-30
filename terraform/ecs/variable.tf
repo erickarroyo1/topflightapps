@@ -19,4 +19,6 @@ variable "db_pass" {}
 
 variable "db_name" {}
 
+variable "alb_tls_cert_arn" {}
+
 
