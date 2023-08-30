@@ -8,7 +8,7 @@ Note:
 - The certificate is not deployed using terraform, i pass the arn of the cert with a tfvars file.
 - The public access for this solution is: https://topflight.devsecopsapp.com/ using route53 alias pointing to alb.
 
-## Evidence: 
+## Working Evidence: 
 
   ![TopflightAPP running](./resources/TopflightAPP-Running.png " TopflightAPP - done")
 
@@ -91,12 +91,25 @@ Note:
     ```
 # Missing Items and improvements
 
-1. Remmenmber that the database configuration is not auto-deploying. Is needed a bastion host to make the first connection to the DB and create the table employees.
+1. The database configuration is not auto-deploying. Is needed a bastion host to make the first connection to the DB and create the table employees.
 2. Take into consideration that the ECR repository is public for testing purposes. 
 3. There is no automatic script running to generate the DOcker image. I will push an script to do it. Maybe with a null resource local-exec from terraform that call an script.
 3. There is no CDN or WAF in place to protect against attacks (due the time of this project). This is consider a must.
 4. CI/CD is a good solution to solve manual steps like configuration of the RDS and employee table, deploy terraform, build and push docker image. (Due the objective and time, is not completed yet)
 
+# Evidences of resources and deployment:
 
 
-
+  ![TopflightAPP running](./resources/Captura desde 2023-08-30-1.png " TopflightAPP - 1")
+  ![TopflightAPP running](./resources/Captura desde 2023-08-30-2.png " TopflightAPP - 2")
+  ![TopflightAPP running](./resources/Captura desde 2023-08-30-3.png " TopflightAPP - 3")
+  ![TopflightAPP running](./resources/Captura desde 2023-08-30-4.png " TopflightAPP - 4")
+  ![TopflightAPP running](./resources/Captura desde 2023-08-30-5.png " TopflightAPP - 5")
+  ![TopflightAPP running](./resources/Captura desde 2023-08-30-6.png " TopflightAPP - 6")
+  ![TopflightAPP running](./resources/Captura desde 2023-08-30-7.png " TopflightAPP - 7")
+  ![TopflightAPP running](./resources/Captura desde 2023-08-30-8.png " TopflightAPP - 8")
+  ![TopflightAPP running](./resources/Captura desde 2023-08-30-9.png " TopflightAPP - 9")
+  ![TopflightAPP running](./resources/Captura desde 2023-08-30-10.png " TopflightAPP - 10")
+  ![TopflightAPP running](./resources/Captura desde 2023-08-30-11.png " TopflightAPP - 11")
+  ![TopflightAPP running](./resources/Captura desde 2023-08-30-12.png " TopflightAPP - 12")
+  ![TopflightAPP running](./resources/DeploymentTFErick.png " TopflightAPP - deployment Erick")
