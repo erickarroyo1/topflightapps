@@ -86,21 +86,21 @@ This repository demonstrates the deployment of a simple application using Amazon
 8. CI/CD
 
 
-TSHOOT: Despliegue modular en workspace prod
+# TSHOOT:
 
 
-Manualidades cosas que faltan
+# Manualidades cosas que faltan
 
-Tener en cuenta que no está desplegando automáticamente la configuración de la BD
-Tener en cuenta que el repo en ECR está publico y que no se está ejecutando un script automático paara generar la imágen
-Tener en cuenta qe no se ha subido el código a algun repositorio
-**No se tiene documentación aun
-**el  despliegue  es sin balanceador de carga
-no se tiene certificado para listener https 
-no se tiene CDN ni WAF
+1. Tener en cuenta que no está desplegando automáticamente la configuración de la BD
+2. Tener en cuenta que el repo en ECR está publico y que no se está ejecutando un script automático paara generar la imágen.
+3. Tener en cuenta qe no se ha subido el código a algun repositorio
+4. **No se tiene documentación aun
+5. **el  despliegue  es sin balanceador de carga
+6. no se tiene certificado para listener https 
+7. no se tiene CDN ni WAF
 
 
-Orden de despliegue: 
+Orden de despliegue para ci/cd (opcional si hay tiempo): 
 
 1. VPC
 2. Backend
