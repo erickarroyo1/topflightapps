@@ -1,4 +1,4 @@
-# AWS ECS Deployment with Terraform and Docker
+# DevSecOps Project - AWS ECS Deployment with Terraform and Docker
 
 This repository demonstrates the deployment of a simple application using Amazon ECS, RDS, Terraform, and Docker. The application consists of a basic flask app using python. It is deployed into a container that displays a message and retrieve the current value of the database. The RDS Data is inserted at the 1st called to a microservice and is ony one execution. It involves creating a VPC, an RDS database, an ECS cluster, and deploying the application container. Security best practices are followed to ensure proper access control, networking, and endpoint protection.
 
