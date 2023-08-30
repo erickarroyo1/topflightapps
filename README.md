@@ -74,7 +74,7 @@ Note:
 1. Connect to the RDS database using bastion host deployed into the same RDS's VPC
 
     ```bash
-        mysql -h database-topflight-app.cqa8k6awsmjm.us-east-1.rds.amazonaws.com -u admin -p
+        mysql -h topflightapps-database.cqa8k6awsmjm.us-east-1.rds.amazonaws.com -u admin -p
     
     ```
 
