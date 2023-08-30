@@ -100,7 +100,7 @@ Note:
 # Evidences of resources and deployment:
 
 
-  ![TopflightAPP running](./resources/Captura%20desde%202023-08-30-1.png " TopflightAPP - 1")
+  
   ![TopflightAPP running](./resources/Captura%20desde%202023-08-30-2.png " TopflightAPP - 2")
   ![TopflightAPP running](./resources/Captura%20desde%202023-08-30-3.png " TopflightAPP - 3")
   ![TopflightAPP running](./resources/Captura%20desde%202023-08-30-4.png " TopflightAPP - 4")
