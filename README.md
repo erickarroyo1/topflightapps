@@ -91,10 +91,11 @@ Note:
     ```
 # Missing Items and improvements
 
-1. Please ensure that the database configuration is not auto-deploying.
-2. Take into consideration that the ECR repository is public, and there is no automatic script running to generate the image.
-3. There is no CDN or WAF in place.
-4. CI/CD is a good solution to solve manual steps like configuration of the RDS and employee table, deploy terraform, build and push docker image 
+1. Remmenmber that the database configuration is not auto-deploying. Is needed a bastion host to make the first connection to the DB and create the table employees.
+2. Take into consideration that the ECR repository is public for testing purposes. 
+3. There is no automatic script running to generate the DOcker image. I will push an script to do it. Maybe with a null resource local-exec from terraform that call an script.
+3. There is no CDN or WAF in place to protect against attacks (due the time of this project). This is consider a must.
+4. CI/CD is a good solution to solve manual steps like configuration of the RDS and employee table, deploy terraform, build and push docker image. (Due the objective and time, is not completed yet)
 
 
 
