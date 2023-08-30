@@ -8,7 +8,11 @@ Note:
 - The certificate is not deployed using terraform, i pass the arn of the cert with a tfvars file.
 - The public access for this solution is: https://topflight.devsecopsapp.com/ using route53 alias pointing to alb.
 
-## Steps
+## Evidence: 
+
+  ![TopflightAPP running](./resources/TopflightAPP-Running.png " TopflightAPP - done")
+
+## Steps to deploy
 
 ### Docker Image Build and Push
 
@@ -62,7 +66,7 @@ Note:
 7. ECS task definition
 8. ECR Repository
 9. Image creation and pulling to ECR
-10. Use terraform.workspaces from beginning and module as possible for repeteability (needed)
+10. Use terraform.workspaces from beginning and module as possible for repeteability (needed), I use workspace prod for all project modules separated by folders.
 11. CI/CD (optional)
 
 ### Database Configuration form a host within vpc
@@ -89,8 +93,9 @@ Note:
 
 1. Please ensure that the database configuration is not auto-deploying.
 2. Take into consideration that the ECR repository is public, and there is no automatic script running to generate the image.
-3. The deployment lacks a load balancer.
-4. An HTTPS listener certificate is missing.
-5. There is no CDN or WAF in place.
-6. CI/CD is a good solution to solve manual steps like configuration of the RDS and employee table, deploy terraform, build and push docker image 
+3. There is no CDN or WAF in place.
+4. CI/CD is a good solution to solve manual steps like configuration of the RDS and employee table, deploy terraform, build and push docker image 
+
+
+
 
