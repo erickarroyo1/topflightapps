@@ -4,7 +4,9 @@ This repository demonstrates the deployment of a simple application using Amazon
 
 For security Best Practices purposes, i use a .gitignore file that avoid the upload of *.tfvars files. Additionally, in order to not to manage static credentials, the provider is confiured with alias and I use sso authentication from aws CLIv2
 
-Note: The certificate is not deployed using terraform, i pass the arn of the cert with a tfvars file.
+Note:
+- The certificate is not deployed using terraform, i pass the arn of the cert with a tfvars file.
+- The public access for this solution is: https://topflight.devsecopsapp.com/ using route53 alias pointing to alb.
 
 ## Steps
 
