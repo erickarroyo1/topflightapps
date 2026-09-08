@@ -1,67 +1,74 @@
-resource "aws_ecs_cluster" "topflightapp_ecs_cluster" {
-  name     = "topflightapp_ecs_cluster"
+resource "aws_ecs_cluster" "this" {
+  name = "${var.app}-ecs-cluster"
+
+  setting {
+    name  = "containerInsights"
+    value = "enabled"
+  }
+
   tags     = local.common_tags
   provider = aws.landing-zone-account
 }
 
-resource "aws_ecs_task_definition" "topflightapp-task-definition" {
-  family                   = "topflightapp-task-definition"
+resource "aws_cloudwatch_log_group" "app" {
+  name              = "/ecs/${var.app}/${terraform.workspace}"
+  retention_in_days = 90
+  tags              = local.common_tags
+  provider          = aws.landing-zone-account
+}
+
+# Credentials are injected by ECS at task start via "secrets" (valueFrom).
+# They never appear in the task definition, in `describe-task-definition`
+# output, or in Terraform plan diffs.
+resource "aws_ecs_task_definition" "this" {
+  family                   = "${var.app}-task"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  execution_role_arn       = aws_iam_role.ecs_execution.arn
   cpu                      = "256"
   memory                   = "512"
+  execution_role_arn       = aws_iam_role.ecs_execution.arn
+  task_role_arn            = aws_iam_role.ecs_task.arn
+
+  runtime_platform {
+    operating_system_family = "LINUX"
+    cpu_architecture        = "X86_64"
+  }
+
   container_definitions = jsonencode([
     {
-      "name" : "topflightapp",
-      "image" : "public.ecr.aws/s0p7h2p1/topflightappdemo:v3",
-      "cpu" : 0,
-      "memory" : 512,
-      "portMappings" : [
-        {
-          "name" : "topflightapp-8080-tcp",
-          "containerPort" : 8080,
-          "hostPort" : 8080,
-          "protocol" : "tcp",
-          "appProtocol" : "http"
+      name      = var.app
+      image     = var.container_image
+      essential = true
+
+      portMappings = [{
+        containerPort = 8080
+        hostPort      = 8080
+        protocol      = "tcp"
+      }]
+
+      environment = [
+        { name = "DB_NAME", value = var.db_name },
+        { name = "DB_HOST", value = data.terraform_remote_state.rds.outputs.endpoint_rds },
+        { name = "DB_PORT", value = tostring(data.terraform_remote_state.rds.outputs.rds_port) }
+      ]
+
+      secrets = [
+        { name = "DB_USERNAME", valueFrom = "${data.terraform_remote_state.rds.outputs.db_secret_arn}:username::" },
+        { name = "DB_PASSWORD", valueFrom = "${data.terraform_remote_state.rds.outputs.db_secret_arn}:password::" }
+      ]
+
+      readonlyRootFilesystem = true
+      linuxParameters = {
+        initProcessEnabled = true
+      }
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = aws_cloudwatch_log_group.app.name
+          awslogs-region        = var.region
+          awslogs-stream-prefix = "ecs"
         }
-      ],
-      "essential" : true,
-      "environment" : [
-        {
-          "name" : "DB_NAME",
-          "value" : "db"
-        },
-        {
-          "name" : "DB_USERNAME",
-          "value" : data.terraform_remote_state.rds.outputs.rds_username
-        },
-        {
-          "name" : "DB_HOST",
-          "value" : data.terraform_remote_state.rds.outputs.endpoint_rds
-        },
-        {
-          "name" : "DB_PORT",
-          "value" : tostring(data.terraform_remote_state.rds.outputs.rds_port)
-        },
-        {
-          "name" : "DB_PASSWORD",
-          "value" : aws_secretsmanager_secret_version.topflightapp_db_password_secret_version.secret_string
-        }
-      ],
-      "environmentFiles" : [],
-      "mountPoints" : [],
-      "volumesFrom" : [],
-      "ulimits" : [],
-      "logConfiguration" : {
-        "logDriver" : "awslogs",
-        "options" : {
-          "awslogs-create-group" : "true",
-          "awslogs-group" : "/ecs/TopflightappV3",
-          "awslogs-region" : "us-east-1",
-          "awslogs-stream-prefix" : "ecs"
-        },
-        "secretOptions" : []
       }
     }
   ])
@@ -70,15 +77,23 @@ resource "aws_ecs_task_definition" "topflightapp-task-definition" {
   provider = aws.landing-zone-account
 }
 
-resource "aws_ecs_service" "topflightsvc" {
-  name            = "topflightsvc"
-  cluster         = aws_ecs_cluster.topflightapp_ecs_cluster.id
-  task_definition = aws_ecs_task_definition.topflightapp-task-definition.arn
-  desired_count   = 2
+resource "aws_ecs_service" "this" {
+  name            = "${var.app}-svc"
+  cluster         = aws_ecs_cluster.this.id
+  task_definition = aws_ecs_task_definition.this.arn
+  desired_count   = var.desired_count
+
+  deployment_minimum_healthy_percent = 100
+  deployment_maximum_percent         = 200
+
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
 
   load_balancer {
-    target_group_arn = aws_alb_target_group.topflight-tg_alb.arn
-    container_name   = "topflightapp"
+    target_group_arn = aws_lb_target_group.this.arn
+    container_name   = var.app
     container_port   = 8080
   }
 
@@ -88,64 +103,67 @@ resource "aws_ecs_service" "topflightsvc" {
   }
 
   network_configuration {
-    subnets         = [data.terraform_remote_state.network.outputs.private_subnets[0], data.terraform_remote_state.network.outputs.private_subnets[1]]
-    security_groups = [aws_security_group.ecs_sg.id]
+    subnets          = data.terraform_remote_state.network.outputs.private_subnets
+    security_groups  = [aws_security_group.ecs_sg.id]
+    assign_public_ip = false
   }
 
   tags     = local.common_tags
   provider = aws.landing-zone-account
 }
 
+# ---------------------------------------------------------------------------
+# IAM: two roles with different jobs.
+#   execution role -> what ECS itself needs: pull image, write logs, read the secret to inject it
+#   task role      -> what the application code needs at runtime (nothing, today)
+# ---------------------------------------------------------------------------
 
-
-#Policies and roles
+data "aws_iam_policy_document" "ecs_tasks_assume" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["ecs-tasks.amazonaws.com"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [data.aws_caller_identity.current.account_id]
+    }
+  }
+}
 
 resource "aws_iam_role" "ecs_execution" {
-  name = "ecs-execution-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Action = "sts:AssumeRole",
-        Effect = "Allow",
-        Principal = {
-          Service = "ecs-tasks.amazonaws.com"
-        }
-      }
-    ]
-  })
-
-  # Attach the AmazonECSTaskExecutionRolePolicy managed policy
-  managed_policy_arns = [
-    "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
-  ]
-  tags     = local.common_tags
-  provider = aws.landing-zone-account
+  name               = "${var.app}-${terraform.workspace}-ecs-execution"
+  assume_role_policy = data.aws_iam_policy_document.ecs_tasks_assume.json
+  tags               = local.common_tags
+  provider           = aws.landing-zone-account
 }
 
-resource "aws_iam_policy" "secret_manager_access_policy" {
-  depends_on  = [aws_secretsmanager_secret_version.topflightapp_db_password_secret_version]
-  name        = "SecretManagerAccessPolicy"
-  description = "Allows access to a specific Secret Manager resource"
-
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Action   = "secretsmanager:GetSecretValue",
-        Effect   = "Allow",
-        Resource = aws_secretsmanager_secret_version.topflightapp_db_password_secret_version.arn
-      }
-    ]
-  })
-  tags     = local.common_tags
-  provider = aws.landing-zone-account
-}
-
-resource "aws_iam_role_policy_attachment" "secret_manager_access_attachment" {
-  policy_arn = aws_iam_policy.secret_manager_access_policy.arn
+resource "aws_iam_role_policy_attachment" "ecs_execution_managed" {
   role       = aws_iam_role.ecs_execution.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
   provider   = aws.landing-zone-account
 }
 
+data "aws_iam_policy_document" "read_db_secret" {
+  statement {
+    sid       = "ReadDbSecret"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [data.terraform_remote_state.rds.outputs.db_secret_arn]
+  }
+}
+
+resource "aws_iam_role_policy" "ecs_execution_secret" {
+  name     = "read-db-secret"
+  role     = aws_iam_role.ecs_execution.id
+  policy   = data.aws_iam_policy_document.read_db_secret.json
+  provider = aws.landing-zone-account
+}
+
+resource "aws_iam_role" "ecs_task" {
+  name               = "${var.app}-${terraform.workspace}-ecs-task"
+  assume_role_policy = data.aws_iam_policy_document.ecs_tasks_assume.json
+  tags               = local.common_tags
+  provider           = aws.landing-zone-account
+}

@@ -314,3 +314,5 @@ dmypy.json
 
 #IDE
 .idea
+# env/*.tfvars contain no secrets (passwords are generated in Terraform) and are versioned on purpose
+!env/**/*.tfvars

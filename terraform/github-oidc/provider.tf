@@ -5,11 +5,13 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.60"
     }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
   }
 }
 
-# Bootstrap is run once, locally, with an SSO profile (export AWS_PROFILE=...).
 provider "aws" {
   region = var.region
-  alias  = "landing-zone-account"
 }

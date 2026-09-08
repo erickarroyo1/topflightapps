@@ -7,17 +7,42 @@ locals {
   }
 }
 
-variable "app" {}
-variable "region" {}
-variable "profile" {}
+variable "app" {
+  description = "Application name used as prefix for all resources"
+  type        = string
+}
 
-### Database Variables
+variable "region" {
+  description = "AWS region"
+  type        = string
+  default     = "us-east-1"
+}
 
-variable "db_user" {}
+variable "db_user" {
+  description = "Master username. The password is generated and stored in Secrets Manager, never passed as a variable."
+  type        = string
+  default     = "admin"
+}
 
-variable "db_pass" {}
+variable "db_name" {
+  description = "Initial database name"
+  type        = string
+}
 
-variable "db_name" {}
+variable "instance_class" {
+  description = "RDS instance class"
+  type        = string
+  default     = "db.t3.micro"
+}
 
-variable "instance_class" {}
+variable "multi_az" {
+  description = "Enable Multi-AZ. Set true for production."
+  type        = bool
+  default     = false
+}
 
+variable "backup_retention_days" {
+  description = "Automated backup retention in days"
+  type        = number
+  default     = 7
+}

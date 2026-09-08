@@ -7,6 +7,13 @@ locals {
   }
 }
 
-variable "app" {}
-variable "region" {}
-variable "profile" {}
+variable "app" {
+  description = "Application name used as prefix for all resources"
+  type        = string
+}
+
+variable "region" {
+  description = "AWS region"
+  type        = string
+  default     = "us-east-1"
+}
