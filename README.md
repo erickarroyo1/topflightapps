@@ -20,6 +20,38 @@ It started in 2023 as a take-home technical assessment. In 2026 I revisited it a
 | Supply chain | Unpinned public VPC module | Module and provider versions pinned |
 | Misc | Bastion user-data script with hardcoded DB users | Removed |
 
+## Working evidence (2023 deployment)
+
+Screenshots from the original deployment. The 2026 hardening has not been applied to a live account; see PR #1 for what is and isn't verified.
+
+  ![TopflightAPP running](./resources/TopflightAPP-Running.png " TopflightAPP - done")
+
+  ![TopflightAPP running](./resources/Captura%20desde%202023-08-30-1.png " TopflightAPP - 1")
+
+  ![TopflightAPP running](./resources/Captura%20desde%202023-08-30-2.png " TopflightAPP - 2")
+
+  ![TopflightAPP running](./resources/Captura%20desde%202023-08-30-3.png " TopflightAPP - 3")
+
+  ![TopflightAPP running](./resources/Captura%20desde%202023-08-30-4.png " TopflightAPP - 4")
+
+  ![TopflightAPP running](./resources/Captura%20desde%202023-08-30-5.png " TopflightAPP - 5")
+
+  ![TopflightAPP running](./resources/Captura%20desde%202023-08-30-6.png " TopflightAPP - 6")
+
+  ![TopflightAPP running](./resources/Captura%20desde%202023-08-30-7.png " TopflightAPP - 7")
+
+  ![TopflightAPP running](./resources/Captura%20desde%202023-08-30-8.png " TopflightAPP - 8")
+
+  ![TopflightAPP running](./resources/Captura%20desde%202023-08-30-9.png " TopflightAPP - 9")
+
+  ![TopflightAPP running](./resources/Captura%20desde%202023-08-30-10.png " TopflightAPP - 10")
+
+  ![TopflightAPP running](./resources/Captura%20desde%202023-08-30-11.png " TopflightAPP - 11")
+
+  ![TopflightAPP running](./resources/Captura%20desde%202023-08-30-12.png " TopflightAPP - 12")
+
+  ![TopflightAPP running](./resources/DeploymentTFErick.png " TopflightAPP - deployment Erick")
+
 ## Layout
 
 ```
