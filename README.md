@@ -26,8 +26,6 @@ Screenshots from the original deployment. The 2026 hardening has not been applie
 
   ![TopflightAPP running](./resources/TopflightAPP-Running.png " TopflightAPP - done")
 
-  ![TopflightAPP running](./resources/Captura%20desde%202023-08-30-1.png " TopflightAPP - 1")
-
   ![TopflightAPP running](./resources/Captura%20desde%202023-08-30-2.png " TopflightAPP - 2")
 
   ![TopflightAPP running](./resources/Captura%20desde%202023-08-30-3.png " TopflightAPP - 3")
