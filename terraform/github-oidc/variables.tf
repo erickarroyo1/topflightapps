@@ -3,6 +3,11 @@ variable "region" {
   default = "us-east-1"
 }
 
+variable "app" {
+  description = "Application name used as prefix for all resources. Must match the `app` value in env/<workspace>/*.tfvars, since the plan role's secret access is scoped to it."
+  type        = string
+}
+
 variable "github_org" {
   description = "GitHub user or organization that owns the repository"
   type        = string

@@ -12,6 +12,7 @@ It started in 2023 as a take-home technical assessment. In 2026 I revisited it a
 | RDS | MySQL 5.7 (EOL), unencrypted storage, `skip_final_snapshot = true`, no backups, no deletion protection | MySQL 8.0, `storage_encrypted`, 7-day backups, final snapshot, `deletion_protection`, log exports, gp3 |
 | Network | ECS ingress open to subnet CIDRs; ECS and RDS egress `0.0.0.0/0` on all ports | ECS ingress from ALB SG only; ECS egress limited to 443 (AWS APIs) and 3306 to the RDS SG; ALB egress only to tasks; RDS has no egress; VPC Flow Logs enabled |
 | IAM | Single execution role using deprecated `managed_policy_arns` | Separate execution and task roles, `aws:SourceAccount` condition on trust, secret read scoped to one ARN |
+| CI IAM | — | Apply role confined to roles named after the repo; `iam:CreateRole`/`AttachRolePolicy`/`PutRolePolicy` gated on a permissions boundary CI cannot remove or widen; `iam:PassRole` limited to `ecs-tasks` and `ec2`; plan role trusted only for branches and PRs, with a Describe/List policy instead of `ReadOnlyAccess` and secret reads scoped to this application's own prefix |
 | TLS | `ELBSecurityPolicy-2016-08` | `ELBSecurityPolicy-TLS13-1-2-2021-06`, `drop_invalid_header_fields` |
 | Container | Flask `debug=True`, root user | `debug=False`, non-root user, read-only root filesystem, container insights, 90-day log retention |
 | State | Bucket with versioning only, provisioned-capacity lock table | KMS CMK with rotation, public access block, TLS-only bucket policy, on-demand lock table with PITR |
@@ -39,8 +40,8 @@ Each stack has its own state file and reads upstream outputs with `terraform_rem
 
 `terraform/github-oidc` creates two roles:
 
-- `*-gha-plan`: trusted for any ref of this repo (`repo:<org>/<repo>:*`). ReadOnlyAccess plus state bucket/lock table access. Used on pull requests.
-- `*-gha-apply`: trusted only for `repo:<org>/<repo>:environment:prod`. Scoped write permissions for the services this repo manages (not AdministratorAccess). Used on push to `main`, and GitHub will not mint that token until the `prod` environment's required reviewers approve.
+- `*-gha-plan`: trusted for branches and pull requests of this repo (`:ref:refs/heads/*` and `:pull_request`, listed explicitly so a future environment does not inherit the trust). Describe/Get/List on the services these stacks manage, plus state bucket and lock table access. It can read secret values only under this application's own prefix, which is what a plan needs, rather than account-wide. Used on pull requests.
+- `*-gha-apply`: trusted only for `repo:<org>/<repo>:environment:prod`. Scoped write permissions for the services this repo manages (not AdministratorAccess). Role creation is confined to the repo's name prefix and only permitted when the new role carries the workload permissions boundary, which this role cannot detach or widen; `iam:PassRole` is limited to `ecs-tasks.amazonaws.com` and `ec2.amazonaws.com`. Used on push to `main`, and GitHub will not mint that token until the `prod` environment's required reviewers approve.
 
 The workflow requests `id-token: write` and calls `aws-actions/configure-aws-credentials` with the role ARN. There is no `AWS_ACCESS_KEY_ID` in this repository or its secrets.
 
@@ -52,7 +53,7 @@ export AWS_PROFILE=<your-sso-profile>
 cd terraform/backend-remote-state/s3    && terraform init && terraform apply
 cd ../dynamo                             && terraform init && terraform apply
 cd ../../github-oidc                     && terraform init && terraform apply \
-  -var github_org=<org> -var github_repo=<repo> \
+  -var app=<app> -var github_org=<org> -var github_repo=<repo> \
   -var state_bucket=<bucket> -var lock_table=<table>
 ```
 
@@ -68,4 +69,6 @@ Then in GitHub: create the `prod` environment with required reviewers, set repos
 - AWS WAF on the ALB with rate limiting and managed rule groups
 - Customer-managed KMS key for RDS and Secrets Manager
 - Multi-AZ RDS and one NAT per AZ
-- Pin the container image by digest and scan it in CI before deploy
+- Scan the container image in CI before deploy (the base image is already pinned by digest)
+- Scope the CI apply role's service permissions by tag once a tagging convention exists; today `ec2`, `ecs`, `rds` and `secretsmanager` writes are account-wide, bounded only by the IAM restrictions above
+- Enable RDS IAM database authentication and drop password auth; the app authenticates with a password by design today

@@ -36,37 +36,75 @@ resource "aws_security_group" "ecs_sg" {
   provider = aws.landing-zone-account
 }
 
+# The ALB's rules are standalone resources rather than inline blocks. Its egress
+# has to point at the ECS security group, and `ecs_sg` already points back at
+# this one, so keeping both inline would make the two resources depend on each
+# other and Terraform would refuse the graph. Splitting the rules out breaks the
+# cycle. Inline and standalone rules must not be mixed on the same group, so all
+# of this group's rules live out here; `ecs_sg` above keeps its inline blocks.
+# Terraform drops the AWS default allow-all egress when it creates the group.
 resource "aws_security_group" "alb_sg" {
   name        = "${var.app}-alb-sg"
   description = "Public ALB: 80 (redirect) and 443"
   vpc_id      = data.terraform_remote_state.network.outputs.vpc
 
-  ingress {
-    description      = "HTTP, redirected to HTTPS"
-    protocol         = "tcp"
-    from_port        = 80
-    to_port          = 80
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  ingress {
-    description      = "HTTPS"
-    protocol         = "tcp"
-    from_port        = 443
-    to_port          = 443
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  egress {
-    description = "To ECS tasks only"
-    protocol    = "tcp"
-    from_port   = 8080
-    to_port     = 8080
-    cidr_blocks = data.terraform_remote_state.network.outputs.private_subnets_cidr_blocks
-  }
-
   tags     = local.common_tags
   provider = aws.landing-zone-account
+}
+
+resource "aws_vpc_security_group_ingress_rule" "alb_http_v4" {
+  security_group_id = aws_security_group.alb_sg.id
+  description       = "HTTP, redirected to HTTPS"
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv4         = "0.0.0.0/0"
+  tags              = local.common_tags
+  provider          = aws.landing-zone-account
+}
+
+resource "aws_vpc_security_group_ingress_rule" "alb_http_v6" {
+  security_group_id = aws_security_group.alb_sg.id
+  description       = "HTTP, redirected to HTTPS"
+  ip_protocol       = "tcp"
+  from_port         = 80
+  to_port           = 80
+  cidr_ipv6         = "::/0"
+  tags              = local.common_tags
+  provider          = aws.landing-zone-account
+}
+
+resource "aws_vpc_security_group_ingress_rule" "alb_https_v4" {
+  security_group_id = aws_security_group.alb_sg.id
+  description       = "HTTPS"
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv4         = "0.0.0.0/0"
+  tags              = local.common_tags
+  provider          = aws.landing-zone-account
+}
+
+resource "aws_vpc_security_group_ingress_rule" "alb_https_v6" {
+  security_group_id = aws_security_group.alb_sg.id
+  description       = "HTTPS"
+  ip_protocol       = "tcp"
+  from_port         = 443
+  to_port           = 443
+  cidr_ipv6         = "::/0"
+  tags              = local.common_tags
+  provider          = aws.landing-zone-account
+}
+
+# Reaches the tasks by security group, not by subnet CIDR: anything else sharing
+# those subnets is not a valid destination.
+resource "aws_vpc_security_group_egress_rule" "alb_to_tasks" {
+  security_group_id            = aws_security_group.alb_sg.id
+  description                  = "To ECS tasks only"
+  ip_protocol                  = "tcp"
+  from_port                    = 8080
+  to_port                      = 8080
+  referenced_security_group_id = aws_security_group.ecs_sg.id
+  tags                         = local.common_tags
+  provider                     = aws.landing-zone-account
 }
