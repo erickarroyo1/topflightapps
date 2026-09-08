@@ -3,5 +3,7 @@ variable "app_name" {
   default = "terraform-topflightapp-tf"
 }
 
-variable "region" {}
-variable "profile" {}
+variable "region" {
+  type    = string
+  default = "us-east-1"
+}

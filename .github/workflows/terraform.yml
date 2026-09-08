@@ -1,0 +1,140 @@
+name: terraform
+
+on:
+  pull_request:
+    paths: ["terraform/**", ".github/workflows/terraform.yml"]
+  push:
+    branches: [main]
+    paths: ["terraform/**"]
+
+permissions:
+  contents: read
+  id-token: write        # required for OIDC; no AWS keys stored in the repo
+  pull-requests: write   # to post plan output on the PR
+
+env:
+  AWS_REGION: us-east-1
+  TF_VERSION: "1.9.5"
+  TF_WORKSPACE: prod
+  TF_IN_AUTOMATION: "true"
+
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive terraform/
+
+      - name: terraform validate
+        run: |
+          set -e
+          for d in vpc rds ecs github-oidc; do
+            (cd terraform/$d && terraform init -backend=false -input=false >/dev/null && terraform validate)
+          done
+
+      - name: IaC security scan (trivy)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: config
+          scan-ref: terraform/
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          hide-progress: true
+
+  plan:
+    needs: static-checks
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [vpc, rds, ecs]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Assume plan role (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          role-session-name: gha-plan-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: terraform plan
+        id: plan
+        working-directory: terraform/${{ matrix.component }}
+        run: |
+          terraform init -input=false
+          terraform plan -input=false -no-color -lock-timeout=5m \
+            -var-file=../../env/prod/${{ matrix.component }}.tfvars \
+            -out=tfplan | tee plan.txt
+          echo "exitcode=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Fail on destroy of stateful resources
+        working-directory: terraform/${{ matrix.component }}
+        run: |
+          if terraform show -json tfplan | jq -e '
+              .resource_changes[]?
+              | select(.type | test("aws_db_instance|aws_s3_bucket|aws_secretsmanager_secret"))
+              | select(.change.actions | index("delete"))' >/dev/null; then
+            echo "::error::Plan deletes or replaces a stateful resource. Refusing."
+            exit 1
+          fi
+
+      - name: Post plan to PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('terraform/${{ matrix.component }}/plan.txt', 'utf8');
+            const body = `#### terraform plan: \`${{ matrix.component }}\`\n<details><summary>Show plan</summary>\n\n\`\`\`\n${plan.slice(0, 60000)}\n\`\`\`\n</details>`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: context.issue.number, body
+            });
+
+  apply:
+    needs: static-checks
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: prod          # required reviewers configured in repo settings
+    concurrency:
+      group: terraform-apply-prod
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Assume apply role (OIDC, prod environment only)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_APPLY_ROLE_ARN }}
+          role-session-name: gha-apply-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Order matters: rds reads vpc state, ecs reads vpc + rds state.
+      - name: terraform apply (vpc -> rds -> ecs)
+        run: |
+          set -e
+          for c in vpc rds ecs; do
+            echo "::group::apply $c"
+            cd terraform/$c
+            terraform init -input=false
+            terraform plan -input=false -no-color -lock-timeout=5m \
+              -var-file=../../env/prod/$c.tfvars -out=tfplan
+            terraform apply -input=false -auto-approve tfplan
+            cd ../..
+            echo "::endgroup::"
+          done

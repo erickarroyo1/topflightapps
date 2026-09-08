@@ -1,22 +1,19 @@
 output "endpoint_rds" {
-  description = "endpoint RDS"
-  value       = split(":", aws_db_instance.topflight-rds-instance.endpoint)[0] #Split to avoid get the port by default
-}
-
-output "rds_hostname" {
-  description = "RDS instance hostname"
-  value       = aws_db_instance.topflight-rds-instance.address
-  sensitive   = false
+  description = "RDS hostname (no port)"
+  value       = aws_db_instance.this.address
 }
 
 output "rds_port" {
-  description = "RDS instance port"
-  value       = aws_db_instance.topflight-rds-instance.port
-  sensitive   = false
+  description = "RDS port"
+  value       = aws_db_instance.this.port
 }
 
-output "rds_username" {
-  description = "RDS instance root username"
-  value       = aws_db_instance.topflight-rds-instance.username
-  sensitive   = true
+output "db_secret_arn" {
+  description = "Secrets Manager ARN holding the master credentials. Consumers read the secret at runtime; the password is never exposed as an output."
+  value       = aws_secretsmanager_secret.db.arn
+}
+
+output "rds_sg_id" {
+  description = "RDS security group ID, used by consumers to scope their egress"
+  value       = aws_security_group.rds_sg.id
 }
